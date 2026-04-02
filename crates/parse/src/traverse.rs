@@ -126,7 +126,7 @@ pub fn parse_value<'a>(val: &'a Value, visitor: &mut impl Visitor<'a>) {
                 visitor,
                 items,
                 |visitor, (k, v)| {
-                    visitor.on_string(k);
+                    visitor.on_object_key(k);
                     visitor.on_object_key_val_delim();
                     parse_value(v, visitor);
                 },
@@ -147,4 +147,110 @@ pub fn parse_value<'a>(val: &'a Value, visitor: &mut impl Visitor<'a>) {
             visitor.on_array_close();
         }
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ast::parse_str;
+
+    #[derive(Debug, PartialEq, Eq)]
+    enum Event<'a> {
+        ObjectOpen,
+        ObjectKey(&'a str),
+        ObjectKeyValDelim,
+        ObjectClose,
+        ArrayOpen,
+        ArrayClose,
+        Null,
+        String(&'a str),
+        Number(Cow<'a, str>),
+        Boolean(bool),
+        ItemDelim,
+    }
+
+    #[derive(Default)]
+    struct RecordingVisitor<'a> {
+        events: Vec<Event<'a>>,
+    }
+
+    impl<'a> Visitor<'a> for RecordingVisitor<'a> {
+        fn on_object_open(&mut self) {
+            self.events.push(Event::ObjectOpen);
+        }
+
+        fn on_object_key(&mut self, key: &'a str) {
+            self.events.push(Event::ObjectKey(key));
+        }
+
+        fn on_object_key_val_delim(&mut self) {
+            self.events.push(Event::ObjectKeyValDelim);
+        }
+
+        fn on_object_close(&mut self) {
+            self.events.push(Event::ObjectClose);
+        }
+
+        fn on_array_open(&mut self) {
+            self.events.push(Event::ArrayOpen);
+        }
+
+        fn on_array_close(&mut self) {
+            self.events.push(Event::ArrayClose);
+        }
+
+        fn on_null(&mut self) {
+            self.events.push(Event::Null);
+        }
+
+        fn on_string(&mut self, value: &'a str) {
+            self.events.push(Event::String(value));
+        }
+
+        fn on_number(&mut self, value: Cow<'a, str>) {
+            self.events.push(Event::Number(value));
+        }
+
+        fn on_boolean(&mut self, value: bool) {
+            self.events.push(Event::Boolean(value));
+        }
+
+        fn on_item_delim(&mut self) {
+            self.events.push(Event::ItemDelim);
+        }
+    }
+
+    #[test]
+    fn parse_value_matches_token_traversal_events() {
+        let json = r#"{"a":["b",{"c":1}],"d":true}"#;
+        let expected = vec![
+            Event::ObjectOpen,
+            Event::ObjectKey("a"),
+            Event::ObjectKeyValDelim,
+            Event::ArrayOpen,
+            Event::String("b"),
+            Event::ItemDelim,
+            Event::ObjectOpen,
+            Event::ObjectKey("c"),
+            Event::ObjectKeyValDelim,
+            Event::Number("1".into()),
+            Event::ObjectClose,
+            Event::ArrayClose,
+            Event::ItemDelim,
+            Event::ObjectKey("d"),
+            Event::ObjectKeyValDelim,
+            Event::Boolean(true),
+            Event::ObjectClose,
+        ];
+
+        let mut from_tokens = RecordingVisitor::default();
+        parse_tokens(&mut TokenStream::new(json), json, true, &mut from_tokens).unwrap();
+
+        let ast = parse_str(json).unwrap();
+        let mut from_ast = RecordingVisitor::default();
+        parse_value(&ast, &mut from_ast);
+
+        assert_eq!(from_tokens.events, expected);
+        assert_eq!(from_ast.events, expected);
+    }
 }
