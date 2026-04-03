@@ -37,17 +37,28 @@ impl JsonChar {
     /// unescaped = %x20-21 / %x23-5B / %x5D-10FFFF
     /// ```
     /// see [RFC 8249 section 7](https://datatracker.ietf.org/doc/html/rfc8259#section-7)
-    pub fn escape(self) -> String {
+    pub fn direct_escape(self) -> Option<&'static str> {
         match self.0 {
-            '"' => r#"\""#.into(),
-            '\\' => r"\\".into(),
-            '/' => r"\/".into(),
-            '\u{0008}' => r"\b".into(),
-            '\u{000C}' => r"\f".into(),
-            '\n' => r"\n".into(),
-            '\r' => r"\r".into(),
-            '\t' => r"\t".into(),
-            ch => format!("\\u{:04X}", u32::from(ch)),
+            '"' => Some(r#"\""#),
+            '\\' => Some(r"\\"),
+            '/' => Some(r"\/"),
+            '\u{0008}' => Some(r"\b"),
+            '\u{000C}' => Some(r"\f"),
+            '\n' => Some(r"\n"),
+            '\r' => Some(r"\r"),
+            '\t' => Some(r"\t"),
+            _ => None,
+        }
+    }
+
+    pub fn minimal_escape(self) -> Option<&'static str> {
+        self.direct_escape().filter(|escaped| *escaped != r"\/")
+    }
+
+    pub fn escape(self) -> String {
+        match self.direct_escape() {
+            Some(escaped) => escaped.into(),
+            None => format!("\\u{:04X}", u32::from(self.0)),
         }
     }
 
@@ -103,6 +114,26 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
+
+    #[rstest]
+    #[case('"', Some(r#"\""#))]
+    #[case('\\', Some(r"\\"))]
+    #[case('/', Some(r"\/"))]
+    #[case('\n', Some(r"\n"))]
+    #[case('a', None)]
+    fn direct_escape_cases(#[case] input: char, #[case] expected: Option<&str>) {
+        assert_eq!(JsonChar(input).direct_escape(), expected);
+    }
+
+    #[rstest]
+    #[case('"', Some(r#"\""#))]
+    #[case('\\', Some(r"\\"))]
+    #[case('/', None)]
+    #[case('\n', Some(r"\n"))]
+    #[case('a', None)]
+    fn minimal_escape_cases(#[case] input: char, #[case] expected: Option<&str>) {
+        assert_eq!(JsonChar(input).minimal_escape(), expected);
+    }
 
     #[rstest]
     #[case('\u{0008}', r"\b")]

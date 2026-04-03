@@ -2,6 +2,7 @@ use crate::{
     ast::Value,
     format::{self, FormatOptions, LineEnding},
 };
+mod uglify;
 
 impl From<serde_json::Value> for Value<'_> {
     fn from(value: serde_json::Value) -> Self {
@@ -42,10 +43,10 @@ pub fn uglify_value(val: serde_json::Value) -> String {
     format::uglify_value(&val.into())
 }
 
-/// A wrapper of [`crate::format::uglify_value`] that takes a
-/// [`serde::Serialize`]
+/// Serializes a [`serde::Serialize`] value using this crate's compact JSON
+/// formatter.
 ///
-/// See [`self::uglify_value`] for a lower level API
+/// See [`self::uglify_value`] for the [`serde_json::Value`] variant.
 ///
 /// ```
 /// # use std::collections::HashMap;
@@ -58,7 +59,9 @@ pub fn uglify_value(val: serde_json::Value) -> String {
 /// );
 /// ```
 pub fn uglify_serializable(val: impl serde::Serialize) -> serde_json::Result<String> {
-    Ok(uglify_value(serde_json::to_value(val)?))
+    let mut serializer = format::uglify::UglifyEmitVisitor::default();
+    val.serialize(&mut serializer)?;
+    Ok(serializer.buf)
 }
 
 /// A wrapper of [`crate::format::prettify_value`] that takes a
@@ -83,10 +86,10 @@ pub fn prettify_value(
     format::prettify_value(&val.into(), preferred_width, line_ending)
 }
 
-/// A wrapper of [`crate::format::prettify_value`] that takes a
-/// [`serde::Serialize`]
+/// Formats a [`serde::Serialize`] value using this crate's pretty JSON
+/// formatter.
 ///
-/// See [`self::prettify_value`] for a lower level API
+/// See [`self::prettify_value`] for the [`serde_json::Value`] variant.
 ///
 /// ```
 /// # use std::collections::HashMap;
@@ -114,10 +117,10 @@ pub fn prettify_serializable(
     ))
 }
 
-/// A wrapper of [`format::format_value`] that takes a
-/// [`serde::Serialize`]
+/// Formats a [`serde::Serialize`] value using this crate's configurable JSON
+/// formatter.
 ///
-/// See [`self::format_value`] for a lower level API
+/// See [`self::format_value`] for the [`serde_json::Value`] variant.
 ///
 /// ```
 /// # use std::collections::HashMap;

@@ -8,7 +8,7 @@ publish = false
 [dependencies]
 displaydoc = { workspace = true }
 itertools = "0.14.0"
-serde = { version = "1", optional = true }
+serde = { version = "1", optional = true, features = ["derive"] }
 serde_json = { version = "1", features = [
   "arbitrary_precision",
   "preserve_order",
