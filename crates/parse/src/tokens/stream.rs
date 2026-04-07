@@ -8,15 +8,25 @@ use crate::{
     },
 };
 
+fn skip_whitespace(bytes: &[u8]) -> usize {
+    bytes
+        .iter()
+        // TODO: create and use ByteWithContext
+        .position(|&b| !matches!(b, b' ' | b'\t' | b'\n' | b'\r'))
+        .unwrap_or(bytes.len())
+}
+
 #[derive(Debug, Clone)]
 struct CharsWithContext<'a> {
     iter: CharIndices<'a>,
+    offset: usize,
 }
 
 impl<'a> CharsWithContext<'a> {
-    fn new(s: &'a str) -> Self {
+    fn new(s: &'a str, offset: usize) -> Self {
         Self {
             iter: s.char_indices(),
+            offset,
         }
     }
 }
@@ -25,7 +35,7 @@ impl<'a> Iterator for CharsWithContext<'a> {
     type Item = CharWithContext;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next().map(Into::into)
+        self.iter.next().map(|(i, c)| (i + self.offset, c).into())
     }
 }
 
@@ -38,17 +48,21 @@ struct TokenStreamInner<'a> {
 impl<'a> TokenStreamInner<'a> {
     fn new(s: &'a str) -> Self {
         Self {
-            chars: CharsWithContext::new(s).peekable(),
+            chars: CharsWithContext::new(s, 0).peekable(),
             input: s,
         }
     }
 
     fn consume_whitespace(&mut self) {
-        while self
-            .chars
-            .next_if(|CharWithContext(_, x)| x.is_whitespace())
-            .is_some()
-        {}
+        let Some(CharWithContext(r, c)) = self.chars.peek() else {
+            return;
+        };
+        if !c.is_whitespace() {
+            return;
+        }
+
+        let new_pos = r.start + skip_whitespace(&self.input.as_bytes()[r.start..]);
+        self.chars = CharsWithContext::new(&self.input[new_pos..], new_pos).peekable();
     }
 }
 
