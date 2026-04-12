@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.5](https://github.com/20jasper/JJPWRGEM/releases/tag/jjpwrgem-v0.5.5) - 2026-4-12
+
+### Added
+
+- Add bytes2chars crate
+- Add InvalidSequenceLength error variant
+- Add prettify_value_into and uglify_value_into
+- Provide rich utf8 error context to the cli
+
+### Documentation
+
+- Fix changelog generation to include breaking features
+- Organize benchmarks into multiple files, and replace manual throughput charts
+- Reflect CPU requirements in readme and update stability
+
+### Fixed
+
+- Parse value visitor now handles object key events properly
+
+### Performance
+
+- Uglify_serializable now uses faster serialization from the crate instead of deferring to serde_json
+- Replace next_if whitespace loop with peek fast path + byte scan
+- Skip whitespace with portable SIMD (u8x32)
+
 ## [0.5.4](https://github.com/20jasper/JJPWRGEM/releases/tag/jjpwrgem-v0.5.4) - 2025-12-23
 
 ### Added
