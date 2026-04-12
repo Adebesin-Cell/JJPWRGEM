@@ -40,6 +40,11 @@ jobs:
             exit 1
           fi
           echo "Publishing ${tarball}"
-          npm publish --access public --provenance "${tarball}"
+          IS_PRERELEASE=$(echo "$PLAN" | jq -r '.announcement_is_prerelease')
+          TAG_ARG=""
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            TAG_ARG="--tag alpha"
+          fi
+          npm publish --access public --provenance $TAG_ARG "${tarball}"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
